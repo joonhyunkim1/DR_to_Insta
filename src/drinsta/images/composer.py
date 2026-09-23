@@ -137,15 +137,13 @@ Across a carousel, naturally vary:
 However, maintain a coherent editorial aesthetic across the carousel.
 
 TEXT AND GRAPHICS
-- Absolutely NO readable text, words, letters, captions, logos, labels,
+- Company names, brand logos, app icons, and product names MAY appear when they
+  naturally belong to the subject of the slide (e.g. a logo on a device or building).
+- Apart from brand names and logos, NO readable text, words, captions, labels,
   UI text, watermarks, or typography anywhere in the image.
 - Do NOT generate fake headlines, fake article screenshots, fake charts with labels,
   fake interface text, or readable code.
-- Never show company names, brand logos, product names, or model numbers on any
-  object - even when the slide text mentions a specific company or product. Show
-  unbranded, generic versions of chips, devices, and hardware instead. A realistic
-  photo of a real brand's product that doesn't exist would mislead readers.
-- The final Instagram template will add all text separately.
+- The final Instagram template will add all other text separately.
 
 COMPOSITION
 Leave sufficient negative space for the Instagram template to overlay text.
@@ -219,9 +217,9 @@ Avoid:
 
 People may appear naturally, but do not create identifiable real people or portraits.
 
-Absolutely no readable text, letters, logos, labels, captions, watermarks,
-or typography anywhere in the image. Show only unbranded, generic products -
-no company names, product names, or model numbers.
+Brand names and logos may appear naturally on the subject. Apart from those,
+no readable text, letters, labels, captions, watermarks, or typography anywhere
+in the image.
 
 Topic:
 {topic}
