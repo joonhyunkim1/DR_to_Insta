@@ -10,6 +10,7 @@ AI 이미지 생성 모델이 텍스트까지 그리게 하면 매번 스타일�
 from __future__ import annotations
 
 import math
+import re
 from dataclasses import dataclass
 
 from PIL import Image, ImageDraw, ImageFont
@@ -63,6 +64,23 @@ def _sanitize_text(text: str) -> str:
     return text
 
 
+# 숫자로 시작하는 짧은 토큰: 버전/모델 번호 ("3", "5.5", "3.8", "4o", "2390과")
+_VERSION_TOKEN = re.compile(r"\d[\w.]{0,5}")
+_LATIN = re.compile(r"[A-Za-z]")
+
+
+def _keep_versions_attached(words: list[str]) -> list[str]:
+    """'WeatherNext 3', 'Claude Opus 5.5'처럼 영문 이름 뒤의 버전 번호는 앞 단어와 한 덩어리로 묶어서
+    줄바꿈 때 번호만 다음 줄로 떨어지지 않게 한다. 한글 뒤 숫자('최대 5km')는 묶지 않는다."""
+    merged: list[str] = []
+    for word in words:
+        if merged and _VERSION_TOKEN.fullmatch(word) and _LATIN.search(merged[-1]):
+            merged[-1] = f"{merged[-1]} {word}"
+        else:
+            merged.append(word)
+    return merged
+
+
 def _wrap_text(draw: ImageDraw.ImageDraw, text: str, font, max_width: int) -> list[str]:
     """줄 길이를 최대한 균등하게 나눈다.
 
@@ -70,7 +88,7 @@ def _wrap_text(draw: ImageDraw.ImageDraw, text: str, font, max_width: int) -> li
     '긴 줄 + 짧은 한 단어' 같은 어색한 줄바꿈이 생기기 쉬워서,
     전체 폭으로 필요한 줄 수를 먼저 정하고 그 줄 수에 맞게 폭을 나눠 채운다.
     """
-    words = text.split(" ")
+    words = _keep_versions_attached(text.split(" "))
     if len(words) <= 1:
         return [text]
 
