@@ -1,0 +1,87 @@
+name: 슬롯 게시
+
+on:
+  schedule:
+    # 게시 슬롯(KST 07/12/18/23시)의 20분 전 = KST 06:40/11:40/17:40/22:40 = UTC 21:40/02:40/08:40/13:40.
+    # 생성(1~5분)을 먼저 끝내고 정각까지 기다렸다가 발행한다 - GitHub cron이 밀리는 만큼을 흡수.
+    # KST는 서머타임이 없어서 1년 내내 이 값 그대로 맞는다. config.yaml의 posting.times를 바꾸면 같이 수정.
+    - cron: "40 21,2,8,13 * * *"
+  workflow_dispatch:
+    inputs:
+      now:
+        description: "슬롯 시각과 무관하게 지금 바로 게시"
+        type: boolean
+        default: true
+      dry_run:
+        description: "생성만 하고 게시/기록하지 않음"
+        type: boolean
+        default: false
+      force_fallback:
+        description: "DR을 건너뛰고 실시간 검색 폴백으로 생성"
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+# 게시 결과를 DB 파일 커밋으로 남기므로 겹쳐 돌지 않게 하나씩 실행한다.
+concurrency:
+  group: drinsta-db-writer
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - run: pip install -r requirements.txt
+
+      - name: 슬롯 처리
+        run: |
+          ARGS=""
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            [ "${{ inputs.now }}" = "true" ] && ARGS="$ARGS --now --no-wait"
+            [ "${{ inputs.dry_run }}" = "true" ] && ARGS="$ARGS --dry-run"
+            [ "${{ inputs.force_fallback }}" = "true" ] && ARGS="$ARGS --force-fallback"
+          fi
+          python scripts/run_slot.py $ARGS
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          DR_DATABASE_URL: ${{ secrets.DR_DATABASE_URL }}
+          IG_BUSINESS_ACCOUNT_ID: ${{ secrets.IG_BUSINESS_ACCOUNT_ID }}
+          IG_ACCESS_TOKEN: ${{ secrets.IG_ACCESS_TOKEN }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_BUCKET_NAME: ${{ secrets.R2_BUCKET_NAME }}
+          R2_PUBLIC_BASE_URL: ${{ secrets.R2_PUBLIC_BASE_URL }}
+
+      - name: dry-run 미리보기 업로드
+        if: ${{ !cancelled() && inputs.dry_run }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: preview
+          path: data/preview/
+          if-no-files-found: ignore
+
+      # 실패해도 커밋한다: 실패 횟수/건너뜀 기록이 남아야 다음 슬롯이 같은 뉴스를 반복하지 않는다.
+      - name: DB 변경사항 커밋
+        if: ${{ !cancelled() }}
+        run: |
+          git config user.name "drinsta-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add data/drinsta.db
+          git diff --cached --quiet && exit 0
+          git commit -m "chore: 게시 결과 반영"
+          # 생성/대기 중에 코드 커밋이 올라왔을 수 있어서 rebase 후 push (DB는 이 워크플로우만 쓴다)
+          git pull --rebase
+          git push

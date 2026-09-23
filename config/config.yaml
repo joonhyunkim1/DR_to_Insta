@@ -1,0 +1,49 @@
+# DR_to_Insta 설정 - 계정/게시 시각/선별 기준/모델/브랜드는 전부 여기서 관리한다.
+instagram:
+  account_name: "TBD"               # 새 인스타 계정 핸들 (텔레그램 알림에 표시). 토큰/계정 ID는 .env에
+
+posting:
+  timezone: "Asia/Seoul"            # KST는 서머타임이 없어서 UTC 고정인 GitHub cron과 1년 내내 맞는다
+  times: ["07:00", "12:00", "18:00", "23:00"]   # 바꾸면 .github/workflows/publish.yml의 cron도 같이 수정
+  # 워크플로우는 슬롯 20분 전에 떠서 생성을 끝내고 정각에 발행한다. 실행 시각이 슬롯 기준
+  # [-before, +after] 분 안이면 그 슬롯으로 인정한다 (GitHub cron 지연 대비).
+  slot_window_minutes:
+    before: 60
+    after: 120
+  max_wait_minutes: 60              # 생성이 일찍 끝나면 정각까지 기다리는 최대 시간
+  body_slides:                      # 커버 뒤에 붙는 본문 슬라이드 수 (커버 포함 총 3~6장)
+    min: 2
+    max: 5
+
+source:
+  dr_lookback_days: 2               # 오늘+어제 DR 배치까지만 후보. 최신 배치를 먼저 소진한다
+  min_impact: 5                     # LLM 임팩트 점수(1~10)가 이 값 미만이면 게시하지 않고 건너뜀
+  fallback_candidates: 3            # DR 후보가 없을 때 실시간 검색으로 찾을 후보 수
+  max_attempts: 2                   # 같은 뉴스로 생성/발행이 이만큼 실패하면 그 뉴스는 포기
+
+dedup:
+  similarity_threshold: 0.85        # 임베딩 유사도 안전장치 (주 판단은 LLM이 최근 게시 제목과 비교)
+  window_days: 10                   # 이 기간 안에 게시한 것과 같은 소식이면 건너뜀
+
+content:
+  fixed_hashtags: ["AI뉴스", "인공지능", "AI", "생성형AI", "테크뉴스", "IT트렌드"]
+  max_hashtags: 12                  # 뉴스별 태그를 먼저 채우고 남는 자리를 고정 태그로 채움
+
+models:
+  writer: "gpt-5.4"                 # 카드뉴스 문구/본문 - 한국어 품질이 핵심이라 상위 모델
+  ranker: "gpt-5.4-mini"            # 후보 선별/중복 판단
+  search: "gpt-5.4"                 # 폴백 실시간 검색 (web_search)
+  structurer: "gpt-5.4-mini"        # 검색 결과를 뉴스 자료 형태로 정리
+  embedding: "text-embedding-3-small"
+  image: "gpt-image-2"
+  image_quality: "low"
+
+image:
+  font:
+    regular: "assets/fonts/IBMPlexSansKR-Regular.ttf"
+    bold: "assets/fonts/IBMPlexSansKR-Bold.ttf"
+  brand:
+    primary_color: "#FF6B35"        # AInstagram(#5B5BD6)과 구분되는 포인트 색
+    overlay_opacity: 160
+    canvas_size: [1080, 1080]
+  storage_prefix: "dr-insta"        # R2 버킷을 AInstagram과 같이 쓰므로 키 앞에 붙이는 경로
